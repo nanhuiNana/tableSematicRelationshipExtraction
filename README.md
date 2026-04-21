@@ -1,2 +1,2 @@
-# tableSematicRelationshipExtraction
-Baseline &amp;&amp; Dataset
+# Table Sematic Relationship Extraction
+baseline && dataset
