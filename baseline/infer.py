@@ -1,4 +1,5 @@
 import argparse
+import csv
 import os
 
 import numpy as np
@@ -11,9 +12,7 @@ from tqdm import tqdm
 from paddlenlp.transformers import AutoTokenizer, AutoModel
 
 
-# ==========================================
-# 1. 模型定义（需与 Paddle 训练保持一致）
-# ==========================================
+# model
 class CPAModel(nn.Layer):
     def __init__(self, model_name, num_labels):
         super().__init__()
@@ -31,7 +30,7 @@ class CPAModel(nn.Layer):
             hidden_size = self.encoder.embeddings.word_embeddings.weight.shape[-1]
 
         if hidden_size is None:
-            raise ValueError('无法自动推断 hidden_size，请检查所使用的预训练模型。')
+            raise ValueError('hidden_size is none')
 
         self.classifier = nn.Linear(hidden_size, num_labels)
 
@@ -50,11 +49,8 @@ class CPAModel(nn.Layer):
         return logits
 
 
-# ==========================================
-# 2. tokenizer 编码工具
-# ==========================================
+# encode
 def encode_pair(tokenizer, text_a, text_b, max_length):
-    """兼容不同 PaddleNLP 版本的 pair 输入写法。"""
     try:
         encoding = tokenizer(
             text=text_a,
@@ -95,9 +91,7 @@ def encode_pair(tokenizer, text_a, text_b, max_length):
     return np.array(input_ids, dtype='int64'), np.array(attention_mask, dtype='int64')
 
 
-# ==========================================
-# 3. 逐行推理 Dataset
-# ==========================================
+# dataset
 class RowInferenceDataset(Dataset):
     def __init__(self, test_dir, tokenizer, max_length=128):
         self.tokenizer = tokenizer
@@ -105,14 +99,14 @@ class RowInferenceDataset(Dataset):
         self.samples = []
 
         csv_files = [f for f in os.listdir(test_dir) if f.endswith('.csv')]
-        for filename in tqdm(csv_files, desc='正在预扫描表格行'):
+        for filename in tqdm(csv_files, desc='scan table row'):
             table_id = filename[:-4]
             file_path = os.path.join(test_dir, filename)
             try:
                 df = pd.read_csv(file_path, low_memory=False, encoding='utf-8-sig')
                 df.columns = [str(col).strip() for col in df.columns]
 
-                if len(df.columns) &lt; 2:
+                if len(df.columns) < 2:
                     continue
 
                 s_col = 'Subject' if 'Subject' in df.columns else df.columns[0]
@@ -154,63 +148,49 @@ def collate_fn(samples):
     }
 
 
-# ==========================================
-# 4. 设备工具
-# ==========================================
+# device
 def resolve_device(device_arg):
-    """仅尝试用户指定设备 / iluvatar_gpu，否则直接回退 cpu。"""
     try:
         custom_types = paddle.device.get_all_custom_device_type()
     except Exception:
         custom_types = []
 
-    print(f'🔧 可用 custom devices: {custom_types}')
+    print(f'devices valid: {custom_types}')
 
     if device_arg:
         try:
             dev = paddle.set_device(device_arg)
-            print(f'✅ 使用指定设备: {dev}')
+            print(f'use device: {dev}')
             return dev
         except Exception as e:
-            print(f'⚠️ 指定设备 {device_arg} 设置失败: {e}')
-
-    if 'iluvatar_gpu' in custom_types:
-        for dev_name in ['iluvatar_gpu:0', 'iluvatar_gpu']:
-            try:
-                dev = paddle.set_device(dev_name)
-                print(f'✅ 使用天数设备: {dev}')
-                return dev
-            except Exception as e:
-                print(f'⚠️ 设置 {dev_name} 失败: {e}')
+            print(f'device use error: {e}')
 
     dev = paddle.set_device('cpu')
-    print('⚠️ 未能启用目标设备，已回退到 CPU')
+    print('use device: CPU')
     return dev
 
 
-# ==========================================
-# 5. 推理主流程
-# ==========================================
+# inference
 def run_inference(args):
     device = resolve_device(args.device)
 
-    # 加载标签
+    # load labels
     with open(args.labels_path, 'r', encoding='utf-8-sig') as f:
         classes = [line.strip() for line in f.readlines() if line.strip()]
     id2label = {idx: label for idx, label in enumerate(classes)}
 
-    # 初始化模型
+    # model init
     tokenizer = AutoTokenizer.from_pretrained(args.shortcut_name)
     model = CPAModel(args.shortcut_name, len(classes))
 
     if not os.path.exists(args.model_path):
-        raise FileNotFoundError(f'❌ 找不到权重文件: {args.model_path}')
+        raise FileNotFoundError(f'can't find: {args.model_path}')
 
     state_dict = paddle.load(args.model_path)
     model.set_state_dict(state_dict)
     model.eval()
 
-    # 加载数据
+    # load data
     dataset = RowInferenceDataset(args.test_dir, tokenizer, args.max_length)
     dataloader = DataLoader(
         dataset,
@@ -221,12 +201,12 @@ def run_inference(args):
         return_list=True,
     )
 
-    print(f'🚀 开始逐行推理，总行数: {len(dataset)}')
+    print(f'start infer: {len(dataset)}')
     results = []
     use_amp = args.use_amp and str(device) != 'cpu'
 
     with paddle.no_grad():
-        for batch in tqdm(dataloader, desc='推理中'):
+        for batch in tqdm(dataloader, desc='inference'):
             ids = paddle.to_tensor(batch['input_ids'], dtype='int64')
             mask = paddle.to_tensor(batch['attention_mask'], dtype='int64')
             row_ids = batch['row_id']
@@ -239,20 +219,21 @@ def run_inference(args):
 
             preds = paddle.argmax(logits, axis=1).numpy().tolist()
             for r_id, p_idx in zip(row_ids, preds):
-                results.append(f'{r_id}: {id2label[p_idx]}')
+                results.append((r_id, id2label[p_idx]))
 
-    with open(args.output_file, 'w', encoding='utf-8') as f:
-        for res in results:
-            f.write(res + '\n')
+    # save into csv
+    with open(args.output_file, 'w', encoding='utf-8', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['id', 'label'])
+        writer.writerows(results)
 
-    print(f'✅ 推理完成，结果保存至: {args.output_file}')
-
+    print(f'infer finish，save into: {args.output_file}')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--test_dir', type=str, default="./dataset/Test_Set")
     parser.add_argument('--labels_path', type=str, default="./labels.txt")
-    parser.add_argument('--model_path', type=str, default="./cpa_output/cpa_20260418_151913/best_model.pdparams", help='Paddle 训练得到的 best_model.pdparams')
+    parser.add_argument('--model_path', type=str, default="./cpa_output/cpa_20260418_151913/best_model.pdparams")
     parser.add_argument('--output_file', type=str, default='./cpa_row_predictions.txt')
     parser.add_argument('--shortcut_name', type=str, default='bert-base-uncased')
     parser.add_argument('--batch_size', type=int, default=256)
