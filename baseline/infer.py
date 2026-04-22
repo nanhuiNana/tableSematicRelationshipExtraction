@@ -184,7 +184,7 @@ def run_inference(args):
     model = CPAModel(args.shortcut_name, len(classes))
 
     if not os.path.exists(args.model_path):
-        raise FileNotFoundError(f'can't find: {args.model_path}')
+        raise FileNotFoundError(f"can't find: {args.model_path}")
 
     state_dict = paddle.load(args.model_path)
     model.set_state_dict(state_dict)
@@ -227,14 +227,14 @@ def run_inference(args):
         writer.writerow(['id', 'label'])
         writer.writerows(results)
 
-    print(f'infer finish，save into: {args.output_file}')
+    print(f'infer finish, save into: {args.output_file}')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--test_dir', type=str, default="./dataset/Test_Set")
     parser.add_argument('--labels_path', type=str, default="./labels.txt")
     parser.add_argument('--model_path', type=str, default="./cpa_output/cpa_20260418_151913/best_model.pdparams")
-    parser.add_argument('--output_file', type=str, default='./cpa_row_predictions.txt')
+    parser.add_argument('--output_file', type=str, default='./cpa_row_predictions.csv')
     parser.add_argument('--shortcut_name', type=str, default='bert-base-uncased')
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--max_length', type=int, default=512)
