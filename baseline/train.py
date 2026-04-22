@@ -217,12 +217,12 @@ def run_training(args):
 
     # 3. split dataset
     counts = raw_train_df['label'].value_counts()
-    rare_labels = counts[counts &lt; 2].index
+    rare_labels = counts[counts < 2].index
     df_rare = raw_train_df[raw_train_df['label'].isin(rare_labels)]
     df_common = raw_train_df[~raw_train_df['label'].isin(rare_labels)]
 
     if len(df_common) == 0:
-        raise ValueError('data num < 2, can't split dataset')
+        raise ValueError("data num < 2, can't split dataset")
 
     train_c, val_c = train_test_split(
         df_common,
@@ -327,10 +327,10 @@ def run_training(args):
                 val_total += int(label_ids.shape[0])
 
         avg_train_loss = tr_loss / max(1, train_steps)
-        val_acc = val_correct / val_total if val_total &gt; 0 else 0.0
+        val_acc = val_correct / val_total if val_total > 0 else 0.0
         logging.info(f'Epoch {epoch + 1} | Loss: {avg_train_loss:.4f} | Val Acc: {val_acc:.4f}')
 
-        if val_acc &gt; best_acc:
+        if val_acc > best_acc:
             best_acc = val_acc
             patience_counter = 0
             paddle.save(model.state_dict(), os.path.join(save_dir, 'best_model.pdparams'))
@@ -338,12 +338,12 @@ def run_training(args):
                 tokenizer.save_pretrained(save_dir)
             except Exception:
                 pass
-            logging.info(f'best model！(Acc: {best_acc:.4f})')
+            logging.info(f'best model! (Acc: {best_acc:.4f})')
         else:
             patience_counter += 1
             logging.info(f'early stop count: {patience_counter}/{patience_limit}')
             if patience_counter == patience_limit:
-                logging.info(f'{patience_limit} epoch not up，early stop!!!')
+                logging.info(f'{patience_limit} epoch not up, early stop!!!')
                 break
 
     logging.info(f'train finish, best acc: {best_acc:.4f}')
@@ -351,7 +351,7 @@ def run_training(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--train_dir', type=str, default="./dataset/Noisy_Train_Set")
+    parser.add_argument('--train_dir', type=str, default="./dataset/Train_Set")
     parser.add_argument('--output_dir', type=str, default='./cpa_output')
     parser.add_argument('--shortcut_name', type=str, default='bert-base-uncased')
     parser.add_argument('--batch_size', type=int, default=32)
@@ -368,4 +368,3 @@ if __name__ == '__main__':
     parser.add_argument('--device', type=str, default='gpu')
     args = parser.parse_args()
     run_training(args)
-  
