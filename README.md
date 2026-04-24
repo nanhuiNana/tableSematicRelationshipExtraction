@@ -1,12 +1,14 @@
 # Table Sematic Relationship Extraction
 * file struct
   - baseline
-    - train.py
-    - infer.py
+    - train.py # baseline train code(paddle version)
+    - infer.py # baseline infer code(paddle version)
   - dataset
-    - train.zip
+    - train.zip # train dataset
       - Train_Set
-        - xxx.csv    
+        - xxx.csv
+    - test.csv # test dataset
+    - labels.csv # labels set
 * environment
   * cuda 11.8 version install command:
     ```
