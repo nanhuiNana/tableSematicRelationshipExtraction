@@ -6,7 +6,7 @@
   - dataset
     - train.zip # train dataset
       - Train_Set
-        - xxx.csv
+        - xxx.csv # xxx: label name
     - test.csv # test dataset
     - labels.csv # labels set
 * environment
