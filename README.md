@@ -4,8 +4,8 @@
   - train.py # baseline train code(paddle version)
   - infer.py # baseline infer code(paddle version)
 - dataset
-  - train.zip # train dataset
-    - Train_Set
+  - Train_Set.zip # train dataset
+    - train
       - xxx.csv # xxx: label name
   - test.csv # test dataset
   - labels.csv # labels set
