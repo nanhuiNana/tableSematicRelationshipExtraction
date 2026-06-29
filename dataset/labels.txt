@@ -8,7 +8,7 @@ GUI toolkit or framework
 ICAA rating
 IDLH
 IUCN protected areas category
-Köppen climate classification
+K#U00f6ppen climate classification
 MPAA film rating
 PPP GDP per capita
 RTC film rating
@@ -225,7 +225,6 @@ home port
 home venue
 home world
 illiterate population
-illustrator
 inception
 income classification (Philippines)
 indigenous to
@@ -312,7 +311,6 @@ narrative location
 narrative role
 narrator
 native label
-negative prognostic predictor
 neutron number
 next higher rank
 next lower rank
